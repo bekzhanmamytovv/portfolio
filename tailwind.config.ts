@@ -19,17 +19,16 @@ const config: Config = {
         accent: 'var(--color-accent)',
       },
       transitionTimingFunction: {
-        // Переопределяем дефолтные кривые Tailwind на вашу кинематографичную
         DEFAULT: 'cubic-bezier(0.16, 1, 0.3, 1)',
         cinematic: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
       fontSize: {
-        'display-xl': ['clamp(3.5rem, 9vw, 10rem)', { lineHeight: '0.92', tracking: '-0.04em' }],
-        display: ['clamp(2.5rem, 6vw, 6rem)', { lineHeight: '0.95', tracking: '-0.03em' }],
-        heading: ['clamp(1.5rem, 3vw, 2.5rem)', { lineHeight: '1.1', tracking: '-0.01em' }],
-        'body-lg': ['clamp(1.125rem, 1.5vw, 1.5rem)', { lineHeight: '1.5', tracking: '0em' }],
+        'display-xl': ['clamp(3.5rem, 9vw, 10rem)', { lineHeight: '0.92', letterSpacing: '-0.04em' }],
+        display: ['clamp(2.5rem, 6vw, 6rem)', { lineHeight: '0.95', letterSpacing: '-0.03em' }],
+        heading: ['clamp(1.5rem, 3vw, 2.5rem)', { lineHeight: '1.1', letterSpacing: '-0.01em' }],
+        'body-lg': ['clamp(1.125rem, 1.5vw, 1.5rem)', { lineHeight: '1.5', letterSpacing: '0em' }],
         body: ['1rem', { lineHeight: '1.5' }],
-        caption: ['0.75rem', { lineHeight: '1.4', tracking: '0.02em' }],
+        caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.02em' }],
       },
     },
   },
