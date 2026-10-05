@@ -1,4 +1,4 @@
-import Image from 'next/image';
+
 
 const SERVICES = [
   {
@@ -66,7 +66,7 @@ export default function BeautyDemo() {
         {/* HEADER */}
         <section className="flex flex-col items-center text-center pt-16 px-6">
           <div className="relative w-24 h-24 mb-5">
-            <Image
+            <img
               src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop"
               alt="Aida - Мастер маникюра"
               fill
@@ -127,7 +127,7 @@ export default function BeautyDemo() {
           <div className="grid grid-cols-2 gap-2">
             {PORTFOLIO.map((img, i) => (
               <div key={i} className="relative w-full aspect-square bg-[#F0EBE1] overflow-hidden rounded-xl">
-                <Image 
+                <img 
                   src={img} 
                   alt="Manicure work" 
                   fill 
