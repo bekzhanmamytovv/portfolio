@@ -32,33 +32,37 @@ export default function Header() {
       ref={headerRef}
       className="fixed top-0 left-0 right-0 z-50 mix-blend-difference pointer-events-none"
     >
-      {/* pointer-events-none на контейнере, pointer-events-auto на детях, чтобы не блокировать клики под хедером */}
       <div className="container flex items-center justify-between py-6 md:py-8 pointer-events-auto">
         <TransitionLink
           href="/"
           className="text-caption uppercase tracking-[0.2em] text-white"
+          data-cursor="magnet"
         >
-          Studio©
+          Ilya — Creative Dev
         </TransitionLink>
 
         <nav className="flex items-center gap-6 md:gap-10">
           <TransitionLink
             href="/"
             className="text-caption uppercase tracking-[0.15em] text-white opacity-50 hover:opacity-100 transition-opacity duration-500"
+            data-cursor="link"
           >
             Work
           </TransitionLink>
           <a
-            href="mailto:hello@studio.com"
+            href="mailto:hello@ilyadev.com"
             className="text-caption uppercase tracking-[0.15em] text-white opacity-50 hover:opacity-100 transition-opacity duration-500 hidden sm:block"
+            data-cursor="link"
           >
             Contact
           </a>
           
           <div className="w-px h-4 bg-white/20 mx-2 hidden sm:block" />
           
-          <ThemeToggle />
-          <SoundToggle />
+          <div data-cursor="link" className="flex items-center gap-6 md:gap-10">
+            <ThemeToggle />
+            <SoundToggle />
+          </div>
         </nav>
       </div>
     </header>

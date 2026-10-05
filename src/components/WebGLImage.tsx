@@ -19,6 +19,7 @@ const FRAGMENT_SHADER = `
   uniform float uHover;
   uniform vec2 uMouse;
   uniform float uTime;
+  uniform float uVelocity; // Получаем скорость мыши
   varying vec2 vUv;
 
   void main() {
@@ -26,15 +27,16 @@ const FRAGMENT_SHADER = `
     
     vec2 mouseDir = uv - uMouse;
     float dist = length(mouseDir);
-    float strength = smoothstep(0.6, 0.0, dist) * uHover;
+    float strength = smoothstep(0.8, 0.0, dist) * uHover;
     
-    // Organic wave distortion
-    float wave = sin(dist * 12.0 - uTime * 2.5) * 0.012 * strength;
-    float wave2 = cos(dist * 8.0 + uTime * 1.8) * 0.008 * strength;
+    // Wave distortion amplified by mouse velocity
+    float velocityEffect = min(uVelocity * 0.5, 2.5); // ограничение силы
+    float wave = sin(dist * 10.0 - uTime * 3.0) * (0.01 + 0.02 * velocityEffect) * strength;
+    float wave2 = cos(dist * 6.0 + uTime * 2.0) * (0.005 + 0.015 * velocityEffect) * strength;
     uv += normalize(mouseDir + 0.001) * (wave + wave2);
     
-    // Chromatic aberration — RGB channel split
-    float aberration = 0.006 * uHover * (1.0 - dist * 0.8);
+    // Chromatic aberration directly linked to velocity and hover
+    float aberration = (0.005 + 0.02 * velocityEffect) * uHover * (1.0 - dist);
     vec2 rOff = vec2(aberration, aberration * 0.5);
     vec2 bOff = vec2(-aberration, -aberration * 0.5);
     
@@ -65,11 +67,12 @@ export default function WebGLImage({
   const uniformsRef = useRef<any>(null);
   const rafRef = useRef<number>(0);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
+  const velocityRef = useRef(0);
+  const lastMousePos = useRef({ x: 0, y: 0 });
   const [webglReady, setWebglReady] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
-    // Проверка на тач-устройства (отключаем тяжелые шейдеры)
     const touch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     setIsTouch(touch);
     if (touch) return;
@@ -83,21 +86,12 @@ export default function WebGLImage({
     let resizeObserver: ResizeObserver;
 
     const init = async () => {
-      try {
-        THREE = await import('three');
-      } catch {
-        return; 
-      }
+      try { THREE = await import('three'); } catch { return; }
 
       const { width, height } = container.getBoundingClientRect();
       if (width === 0 || height === 0) return;
 
-      renderer = new THREE.WebGLRenderer({
-        canvas,
-        alpha: true,
-        antialias: false,
-        powerPreference: 'high-performance',
-      });
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' });
       renderer.setSize(width, height);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
@@ -112,7 +106,7 @@ export default function WebGLImage({
         loader.load(src, resolve, undefined, reject);
       }).catch(() => null);
 
-      if (!texture) return; // Fallback to Next/Image
+      if (!texture) return;
 
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
@@ -123,6 +117,7 @@ export default function WebGLImage({
         uHover: { value: 0 },
         uMouse: { value: new THREE.Vector2(0.5, 0.5) },
         uTime: { value: 0 },
+        uVelocity: { value: 0 },
       };
       uniformsRef.current = uniforms;
 
@@ -139,12 +134,18 @@ export default function WebGLImage({
       setWebglReady(true);
 
       const clock = new THREE.Clock();
+      
       const animate = () => {
         uniforms.uTime.value = clock.getElapsedTime();
 
+        // Mouse Lerp
         const mouse = uniforms.uMouse.value;
-        mouse.x += (mouseRef.current.x - mouse.x) * 0.06;
-        mouse.y += (mouseRef.current.y - mouse.y) * 0.06;
+        mouse.x += (mouseRef.current.x - mouse.x) * 0.08;
+        mouse.y += (mouseRef.current.y - mouse.y) * 0.08;
+
+        // Velocity Lerp and Decay
+        uniforms.uVelocity.value += (velocityRef.current - uniforms.uVelocity.value) * 0.1;
+        velocityRef.current *= 0.9; // Friction
 
         renderer.render(scene, camera);
         rafRef.current = requestAnimationFrame(animate);
@@ -156,41 +157,42 @@ export default function WebGLImage({
         const { width: w, height: h } = container.getBoundingClientRect();
         if (w > 0 && h > 0 && renderer) {
           renderer.setSize(w, h);
+          // Обновляем аспект в материале если нужно, но у нас plane
         }
       };
 
       resizeObserver = new ResizeObserver(onResize);
       resizeObserver.observe(container);
 
+      let lastTime = performance.now();
       const onMouseMove = (e: MouseEvent) => {
         const rect = container.getBoundingClientRect();
-        mouseRef.current = {
-          x: (e.clientX - rect.left) / rect.width,
-          y: 1.0 - (e.clientY - rect.top) / rect.height,
-        };
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = 1.0 - (e.clientY - rect.top) / rect.height;
+        mouseRef.current = { x, y };
+
+        // Calculate velocity
+        const now = performance.now();
+        const dt = Math.max(now - lastTime, 1);
+        const dx = x - lastMousePos.current.x;
+        const dy = y - lastMousePos.current.y;
+        const speed = Math.sqrt(dx * dx + dy * dy) / dt;
+        
+        velocityRef.current = Math.min(speed * 1000, 5.0); // Скалируем скорость мыши
+        
+        lastMousePos.current = { x, y };
+        lastTime = now;
       };
 
       const onMouseEnter = () => {
-        if (uniformsRef.current) {
-          gsap.to(uniformsRef.current.uHover, {
-            value: 1,
-            duration: 1.2,
-            ease: 'power3.out',
-          });
-        }
+        if (uniformsRef.current) gsap.to(uniformsRef.current.uHover, { value: 1, duration: 1.2, ease: 'power3.out' });
       };
 
       const onMouseLeave = () => {
-        if (uniformsRef.current) {
-          gsap.to(uniformsRef.current.uHover, {
-            value: 0,
-            duration: 0.8,
-            ease: 'power2.out',
-          });
-        }
+        if (uniformsRef.current) gsap.to(uniformsRef.current.uHover, { value: 0, duration: 0.8, ease: 'power2.out' });
       };
 
-      container.addEventListener('mousemove', onMouseMove);
+      container.addEventListener('mousemove', onMouseMove, { passive: true });
       container.addEventListener('mouseenter', onMouseEnter);
       container.addEventListener('mouseleave', onMouseLeave);
 
@@ -202,17 +204,12 @@ export default function WebGLImage({
     };
 
     let cleanupEvents: (() => void) | undefined;
-    
-    // Lazy initialization using Intersection Observer to save resources
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          init().then((cleanup) => { cleanupEvents = cleanup; });
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '200px' }
-    );
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        init().then((cleanup) => { cleanupEvents = cleanup; });
+        observer.disconnect();
+      }
+    }, { rootMargin: '200px' });
     observer.observe(container);
 
     return () => {
@@ -220,25 +217,16 @@ export default function WebGLImage({
       cancelAnimationFrame(rafRef.current);
       if (cleanupEvents) cleanupEvents();
       if (resizeObserver) resizeObserver.disconnect();
-      
-      // Полная очистка памяти WebGL (Memory Leak Prevention)
       if (scene) scene.clear();
       if (geometry) geometry.dispose();
       if (material) material.dispose();
       if (texture) texture.dispose();
-      if (renderer) {
-        renderer.forceContextLoss();
-        renderer.dispose();
-      }
+      if (renderer) { renderer.forceContextLoss(); renderer.dispose(); }
     };
   }, [src]);
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative w-full h-full overflow-hidden ${className}`}
-    >
-      {/* Оптимизированный фоллбэк через next/image для CLS=0 и ленивой загрузки */}
+    <div ref={containerRef} className={`relative w-full h-full overflow-hidden ${className}`}>
       <Image
         src={src}
         alt={alt}
@@ -248,12 +236,10 @@ export default function WebGLImage({
         className="object-cover transition-opacity duration-700 ease-out"
         style={{ opacity: webglReady && !isTouch ? 0 : 1 }}
       />
-
-      {/* WebGL canvas — отключен на тач-устройствах */}
       {!isTouch && (
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full transition-opacity duration-700 ease-out"
+          className="absolute inset-0 w-full h-full transition-opacity duration-700 ease-out pointer-events-none"
           style={{ opacity: webglReady ? 1 : 0 }}
         />
       )}

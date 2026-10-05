@@ -16,16 +16,16 @@ export default function ScrollProgress() {
       const docHeight =
         document.documentElement.scrollHeight - window.innerHeight;
       const progress = docHeight > 0 ? Math.min(scrollTop / docHeight, 1) : 0;
-      thumb.style.transform = `scaleY(${progress})`;
+      // Анимация масштабирования по оси X (слева направо)
+      thumb.style.transform = `scaleX(${progress})`;
       ticking = false;
     };
 
-    // Sync with Lenis if available, otherwise use passive scroll
     const lenis = (window as any).__lenis;
 
     if (lenis) {
       const handler = ({ progress }: { progress: number }) => {
-        thumb.style.transform = `scaleY(${progress})`;
+        thumb.style.transform = `scaleX(${progress})`;
       };
       lenis.on('scroll', handler);
       return () => lenis.off('scroll', handler);
@@ -44,15 +44,14 @@ export default function ScrollProgress() {
 
   return (
     <div
-      className="fixed top-0 right-0 w-[2px] h-full z-50 pointer-events-none"
+      className="fixed top-0 left-0 w-full h-[3px] z-[100] pointer-events-none"
       style={{ mixBlendMode: 'difference' }}
     >
       <div
         ref={thumbRef}
-        className="w-full h-full origin-top"
+        className="w-full h-full origin-left bg-white/80"
         style={{
-          background: 'rgba(255,255,255,0.5)',
-          transform: 'scaleY(0)',
+          transform: 'scaleX(0)',
           willChange: 'transform',
         }}
       />

@@ -1,46 +1,35 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
   theme: {
     extend: {
-      colors: {
-        bg: '#080808',
-        fg: '#e8e8e8',
-        'fg-secondary': '#666666',
-        border: '#1a1a1a',
-        accent: '#ffffff',
-      },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
-      fontSize: {
-        'display-xl': [
-          'clamp(3.5rem, 9vw, 10rem)',
-          { lineHeight: '0.92', letterSpacing: '-0.04em', fontWeight: '400' },
-        ],
-        display: [
-          'clamp(2.5rem, 6vw, 6rem)',
-          { lineHeight: '0.95', letterSpacing: '-0.035em', fontWeight: '400' },
-        ],
-        heading: [
-          'clamp(1.5rem, 3vw, 3rem)',
-          { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '400' },
-        ],
-        'body-lg': [
-          'clamp(1rem, 1.2vw, 1.25rem)',
-          { lineHeight: '1.65', fontWeight: '300' },
-        ],
-        body: ['1rem', { lineHeight: '1.65', fontWeight: '300' }],
-        caption: [
-          '0.75rem',
-          { lineHeight: '1.5', letterSpacing: '0.1em', fontWeight: '500' },
-        ],
+      colors: {
+        bg: 'var(--color-bg)',
+        fg: 'var(--color-fg)',
+        'fg-secondary': 'var(--color-fg-secondary)',
+        border: 'var(--color-border)',
+        accent: 'var(--color-accent)',
       },
       transitionTimingFunction: {
-        'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
-        'out-quart': 'cubic-bezier(0.25, 1, 0.5, 1)',
-        'in-out-quart': 'cubic-bezier(0.76, 0, 0.24, 1)',
+        // Переопределяем дефолтные кривые Tailwind на вашу кинематографичную
+        DEFAULT: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        cinematic: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      },
+      fontSize: {
+        'display-xl': ['clamp(3.5rem, 9vw, 10rem)', { lineHeight: '0.92', tracking: '-0.04em' }],
+        display: ['clamp(2.5rem, 6vw, 6rem)', { lineHeight: '0.95', tracking: '-0.03em' }],
+        heading: ['clamp(1.5rem, 3vw, 2.5rem)', { lineHeight: '1.1', tracking: '-0.01em' }],
+        'body-lg': ['clamp(1.125rem, 1.5vw, 1.5rem)', { lineHeight: '1.5', tracking: '0em' }],
+        body: ['1rem', { lineHeight: '1.5' }],
+        caption: ['0.75rem', { lineHeight: '1.4', tracking: '0.02em' }],
       },
     },
   },

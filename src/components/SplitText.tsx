@@ -1,103 +1,94 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, ElementType } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-}
-
 interface SplitTextProps {
   children: string;
+  as?: ElementType;
   className?: string;
   delay?: number;
-  as?: 'h1' | 'h2' | 'h3' | 'p' | 'span' | 'div';
-  trigger?: boolean;
+  duration?: number;
   stagger?: number;
+  trigger?: boolean; // Привязать ли к скроллу
 }
 
 export default function SplitText({
   children,
+  as: Component = 'div',
   className = '',
   delay = 0,
-  as: Tag = 'div',
+  duration = 1.4,
+  stagger = 0.05, // По ТЗ: задержка 0.05с между элементами
   trigger = true,
-  stagger = 0.04,
 }: SplitTextProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hasAnimated = useRef(false);
+  const containerRef = useRef<HTMLElement>(null);
+  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || hasAnimated.current) return;
+    if (!container) return;
 
-    const text = children;
-    const words = text.split(' ');
+    const words = wordRefs.current.filter(Boolean);
 
-    container.innerHTML = '';
+    const ctx = gsap.context(() => {
+      // expo.out - точный GSAP-аналог cubic-bezier(0.16, 1, 0.3, 1)
+      const animation = gsap.fromTo(
+        words,
+        { 
+          y: '115%', 
+          rotateZ: 2 // Легкий кинематографичный завал
+        },
+        {
+          y: '0%',
+          rotateZ: 0,
+          duration,
+          delay: trigger ? 0 : delay,
+          ease: 'expo.out',
+          stagger,
+        }
+      );
 
-    const wordInners: HTMLElement[] = [];
-
-    words.forEach((word, i) => {
-      const wrapper = document.createElement('span');
-      wrapper.style.overflow = 'hidden';
-      wrapper.style.display = 'inline-block';
-      wrapper.style.verticalAlign = 'top';
-
-      const inner = document.createElement('span');
-      inner.style.display = 'inline-block';
-      inner.style.transform = 'translateY(115%)';
-      inner.style.willChange = 'transform';
-      inner.textContent = word;
-
-      wrapper.appendChild(inner);
-      container.appendChild(wrapper);
-
-      if (i < words.length - 1) {
-        const space = document.createElement('span');
-        space.innerHTML = '\u00A0';
-        space.style.display = 'inline-block';
-        container.appendChild(space);
+      if (trigger) {
+        ScrollTrigger.create({
+          trigger: container,
+          start: 'top 88%',
+          animation,
+        });
       }
-
-      wordInners.push(inner);
     });
 
-    const animConfig = {
-      y: 0,
-      duration: 1.4,
-      ease: 'expo.out',
-      stagger,
-    };
+    return () => ctx.revert();
+  }, [delay, duration, stagger, trigger]);
 
-    if (trigger) {
-      ScrollTrigger.create({
-        trigger: container,
-        start: 'top 85%',
-        once: true,
-        onEnter: () => {
-          gsap.to(wordInners, { ...animConfig, delay });
-        },
-      });
-    } else {
-      gsap.to(wordInners, { ...animConfig, delay });
-    }
-
-    hasAnimated.current = true;
-
-    return () => {
-      ScrollTrigger.getAll()
-        .filter((st) => st.trigger === container)
-        .forEach((st) => st.kill());
-    };
-  }, [children, delay, trigger, stagger]);
-
-  const El = Tag as any;
+  // Разбиваем на слова. При overflow-hidden родителя это выглядит
+  // как построчное/пословное появление из маски.
+  const words = children.split(' ');
 
   return (
-    <El ref={containerRef} className={className} aria-label={children}>
-      {children}
-    </El>
+    <Component
+      ref={containerRef}
+      className={className}
+      aria-label={children} // Для скринридеров читается целиком
+    >
+      {words.map((word, i) => (
+        <span
+          key={i}
+          className="inline-block overflow-hidden align-bottom pb-[0.1em] -mb-[0.1em]"
+          style={{ whiteSpace: 'pre' }}
+        >
+          <span
+            ref={(el) => {
+              wordRefs.current[i] = el;
+            }}
+            className="inline-block transform-gpu will-change-transform origin-top-left"
+          >
+            {word}
+            {i !== words.length - 1 && ' '}
+          </span>
+        </span>
+      ))}
+    </Component>
   );
 }

@@ -1,7 +1,5 @@
 /**
  * Sound Manager — Web Audio API synthesized micro-sounds.
- * No audio files needed. Everything generated programmatically.
- * Muted by default. Preference persisted in localStorage.
  */
 
 class SoundManager {
@@ -12,7 +10,7 @@ class SoundManager {
   constructor() {
     try {
       const saved = localStorage.getItem('sound-muted');
-      this._muted = saved !== 'false'; // default: muted
+      this._muted = saved !== 'false';
     } catch {
       this._muted = true;
     }
@@ -20,8 +18,7 @@ class SoundManager {
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
-      this.ctx = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
+      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
@@ -29,15 +26,11 @@ class SoundManager {
     return this.ctx;
   }
 
-  get muted() {
-    return this._muted;
-  }
+  get muted() { return this._muted; }
 
   toggle(): boolean {
     this._muted = !this._muted;
-    try {
-      localStorage.setItem('sound-muted', String(this._muted));
-    } catch {}
+    try { localStorage.setItem('sound-muted', String(this._muted)); } catch {}
     this.listeners.forEach((fn) => fn(this._muted));
     if (!this._muted) this.click();
     return this._muted;
@@ -45,12 +38,10 @@ class SoundManager {
 
   subscribe(fn: (muted: boolean) => void): () => void {
     this.listeners.add(fn);
-    return () => {
-      this.listeners.delete(fn);
-    };
+    return () => { this.listeners.delete(fn); };
   }
 
-  /** Subtle mechanical click — 880→440 Hz sine, 80ms, vol 0.03 */
+  /** Subtle mechanical click (System UI toggle) */
   click() {
     if (this._muted) return;
     try {
@@ -62,7 +53,6 @@ class SoundManager {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, t);
       osc.frequency.exponentialRampToValueAtTime(440, t + 0.06);
-
       gain.gain.setValueAtTime(0.03, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
@@ -72,7 +62,7 @@ class SoundManager {
     } catch {}
   }
 
-  /** Page transition whoosh — filtered noise burst, 180ms */
+  /** Page transition whoosh */
   transition() {
     if (this._muted) return;
     try {
@@ -82,12 +72,9 @@ class SoundManager {
       const len = Math.floor(ctx.sampleRate * dur);
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const data = buf.getChannelData(0);
-
       for (let i = 0; i < len; i++) {
-        const progress = i / len;
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - progress, 4);
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - (i / len), 4);
       }
-
       const src = ctx.createBufferSource();
       src.buffer = buf;
 
@@ -105,7 +92,7 @@ class SoundManager {
     } catch {}
   }
 
-  /** Hover tick — 1200 Hz sine, 40ms, vol 0.012 */
+  /** Hover tick — Хрустящий, тактильный клик (как в ТЗ) */
   hover() {
     if (this._muted) return;
     try {
@@ -114,26 +101,26 @@ class SoundManager {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1200, t);
+      osc.type = 'triangle'; // Дает более резкий/стеклянный клик, чем sine
+      osc.frequency.setValueAtTime(1500, t);
+      osc.frequency.exponentialRampToValueAtTime(800, t + 0.02); // Быстрое падение тона (punch)
 
-      gain.gain.setValueAtTime(0.012, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      gain.gain.setValueAtTime(0.02, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03); // Ультра-короткий decay (хруст)
 
       osc.connect(gain).connect(ctx.destination);
       osc.start(t);
-      osc.stop(t + 0.04);
+      osc.stop(t + 0.03);
     } catch {}
   }
 
-  /** Theme switch — two-tone chime, 100ms */
+  /** Theme switch chime */
   themeSwitch() {
     if (this._muted) return;
     try {
       const ctx = this.getCtx();
       const t = ctx.currentTime;
 
-      // First tone
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
@@ -144,7 +131,6 @@ class SoundManager {
       osc1.start(t);
       osc1.stop(t + 0.1);
 
-      // Second tone (higher, delayed)
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = 'sine';

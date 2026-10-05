@@ -6,55 +6,59 @@ import { gsap } from 'gsap';
 export default function CustomCursor() {
   const cursorRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
+  
+  // State refs
   const pos = useRef({ x: -100, y: -100 });
   const target = useRef({ x: -100, y: -100 });
   const visible = useRef(false);
   const rafId = useRef<number>(0);
+  
+  // Magnet refs
+  const magnetEl = useRef<HTMLElement | null>(null);
 
   const bindInteractiveElements = useCallback(() => {
     const cursor = cursorRef.current;
     const label = labelRef.current;
     if (!cursor || !label) return;
 
-    const elements = document.querySelectorAll<HTMLElement>(
-      '[data-cursor="hover"]'
-    );
+    // 1. Image Hover (Badge)
+    const hovers = document.querySelectorAll<HTMLElement>('[data-cursor="hover"]');
+    // 2. Links (Small scale)
+    const links = document.querySelectorAll<HTMLElement>('[data-cursor="link"], a, button');
+    // 3. Magnets (Sticky center)
+    const magnets = document.querySelectorAll<HTMLElement>('[data-cursor="magnet"]');
 
-    const onEnter = (e: Event) => {
+    const onHoverEnter = (e: Event) => {
       const el = e.currentTarget as HTMLElement;
       const text = el.getAttribute('data-cursor-label') || 'View';
       label.textContent = text;
-
-      gsap.to(cursor, {
-        width: 120,
-        height: 120,
-        borderRadius: '50%',
-        duration: 0.5,
-        ease: 'expo.out',
-      });
+      gsap.to(cursor, { width: 100, height: 100, borderRadius: '50%', duration: 0.5, ease: 'expo.out' });
       gsap.to(label, { opacity: 1, duration: 0.3, delay: 0.08 });
     };
 
+    const onLinkEnter = () => {
+      gsap.to(cursor, { width: 32, height: 32, duration: 0.4, ease: 'expo.out' });
+    };
+
+    const onMagnetEnter = (e: Event) => {
+      magnetEl.current = e.currentTarget as HTMLElement;
+      gsap.to(cursor, { width: 64, height: 64, duration: 0.5, ease: 'back.out(1.5)' });
+    };
+
     const onLeave = () => {
-      gsap.to(cursor, {
-        width: 12,
-        height: 12,
-        duration: 0.5,
-        ease: 'expo.out',
-      });
+      magnetEl.current = null;
+      gsap.to(cursor, { width: 12, height: 12, duration: 0.5, ease: 'expo.out' });
       gsap.to(label, { opacity: 0, duration: 0.2 });
     };
 
-    elements.forEach((el) => {
-      el.addEventListener('mouseenter', onEnter);
-      el.addEventListener('mouseleave', onLeave);
-    });
+    hovers.forEach(el => { el.addEventListener('mouseenter', onHoverEnter); el.addEventListener('mouseleave', onLeave); });
+    links.forEach(el => { el.addEventListener('mouseenter', onLinkEnter); el.addEventListener('mouseleave', onLeave); });
+    magnets.forEach(el => { el.addEventListener('mouseenter', onMagnetEnter); el.addEventListener('mouseleave', onLeave); });
 
     return () => {
-      elements.forEach((el) => {
-        el.removeEventListener('mouseenter', onEnter);
-        el.removeEventListener('mouseleave', onLeave);
-      });
+      hovers.forEach(el => { el.removeEventListener('mouseenter', onHoverEnter); el.removeEventListener('mouseleave', onLeave); });
+      links.forEach(el => { el.removeEventListener('mouseenter', onLinkEnter); el.removeEventListener('mouseleave', onLeave); });
+      magnets.forEach(el => { el.removeEventListener('mouseenter', onMagnetEnter); el.removeEventListener('mouseleave', onLeave); });
     };
   }, []);
 
@@ -62,9 +66,7 @@ export default function CustomCursor() {
     const cursor = cursorRef.current;
     if (!cursor) return;
 
-    // Hide on touch devices
-    const isTouchDevice =
-      'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       cursor.style.display = 'none';
       return;
@@ -89,11 +91,29 @@ export default function CustomCursor() {
       visible.current = true;
     };
 
-    // Lerp animation loop
+    // Physics Loop (Lerp + Magnetism)
     const animate = () => {
-      const lerp = 0.12;
-      pos.current.x += (target.current.x - pos.current.x) * lerp;
-      pos.current.y += (target.current.y - pos.current.y) * lerp;
+      let tx = target.current.x;
+      let ty = target.current.y;
+      let lerp = 0.15; // Более отзывчивый, но плавный
+
+      // Magnetic logic
+      if (magnetEl.current) {
+        const rect = magnetEl.current.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        
+        // Притягиваем цель к центру элемента + немного следуем за реальной мышью
+        const dx = target.current.x - cx;
+        const dy = target.current.y - cy;
+        
+        tx = cx + dx * 0.2;
+        ty = cy + dy * 0.2;
+        lerp = 0.1; // Более вязкий в магните
+      }
+
+      pos.current.x += (tx - pos.current.x) * lerp;
+      pos.current.y += (ty - pos.current.y) * lerp;
 
       gsap.set(cursor, {
         x: pos.current.x,
@@ -103,20 +123,17 @@ export default function CustomCursor() {
       rafId.current = requestAnimationFrame(animate);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
     document.addEventListener('mouseleave', onMouseLeave);
     document.addEventListener('mouseenter', onMouseEnter);
 
     rafId.current = requestAnimationFrame(animate);
 
-    // Bind interactive elements & observe DOM for new ones
     let cleanup = bindInteractiveElements();
-
     const observer = new MutationObserver(() => {
       cleanup?.();
       cleanup = bindInteractiveElements();
     });
-
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
@@ -134,12 +151,9 @@ export default function CustomCursor() {
       ref={cursorRef}
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        width: 12,
-        height: 12,
-        marginLeft: -6,
-        marginTop: -6,
+        top: 0, left: 0,
+        width: 12, height: 12,
+        marginLeft: -6, marginTop: -6,
         background: '#e8e8e8',
         borderRadius: '50%',
         pointerEvents: 'none',
@@ -158,15 +172,12 @@ export default function CustomCursor() {
           fontSize: '11px',
           fontWeight: 500,
           letterSpacing: '0.08em',
-          textTransform: 'uppercase' as const,
-          whiteSpace: 'nowrap' as const,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
           opacity: 0,
           color: '#080808',
-          userSelect: 'none' as const,
         }}
-      >
-        View
-      </span>
+      />
     </div>
   );
 }
